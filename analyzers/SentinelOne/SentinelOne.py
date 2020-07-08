@@ -4,6 +4,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from typing import Dict, Iterator, Pattern, Tuple, Union
+from urllib.parse import urlsplit
 
 import requests
 from cortexutils.analyzer import Analyzer
@@ -21,7 +22,6 @@ S1_API_ENDPOINTS: Dict[str, str] = {
     "get-events": "/web/api/v2.1/dv/events",
 }
 SERVICES: Tuple[str] = ("dns-lookups",)
-URL_RE: Pattern = re.compile(r"^[^:]+:\/{2}([\w\d\-\.]+).+$")
 USER_AGENT: str = "Cortex/SentinelOne-Analyzer-v1.0"
 
 
@@ -182,6 +182,19 @@ class SentinelOne(Analyzer):
         """
         return to_date - timedelta(hours=self.hours_ago)
 
+    def get_domain_from_url(self, url: str) -> str:
+        domain = urlsplit(url).netloc
+
+        # check for port in url e.g.`test.com:8080`
+        if ":" in domain:
+            domain = domain.split(":")[0]
+
+        # check for user e.g. "joe@test.com"
+        if "@" in domain:
+            domain = domain.split("@")[1]
+
+        return domain
+
     def run(self):
         if self.service == "dns-lookups":
             if self.data_type not in ("domain", "fqdn", "url"):
@@ -189,11 +202,7 @@ class SentinelOne(Analyzer):
 
             data = self.get_data()
             if self.data_type == "url":
-                match_obj = URL_RE.match(data)
-                if match_obj is not None:
-                    data = match_obj.group(1)
-                else:
-                    self.not_supported()
+                data = self.get_domain_from_url(data)
 
             # create query and get query ID
             query_id = self._create_query_and_get_id(
