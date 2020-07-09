@@ -39,6 +39,7 @@ class HeadlessChromium(Analyzer):
 
         self.data = self.get_data()
 
+        self.service = self.get_data("config.service")
         if self.service not in SERVICES:
             self.error("bad service")
 
@@ -78,3 +79,6 @@ def run(self):
         )
         self.report({"message": str(response.status_code) + " " + response.text})
 
+
+if __name__ == "__main__":
+    HeadlessChromium().run()
