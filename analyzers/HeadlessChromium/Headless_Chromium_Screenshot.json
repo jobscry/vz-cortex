@@ -1,0 +1,60 @@
+{
+    "name": "Headless_Chromium_Screenshot",
+    "version": "1.0",
+    "author": "Joe Vasquez",
+    "url": "https://github.com/jobscry/vz-cortex",
+    "license": "GPL-V3",
+    "description": "Take screenshot with headless Chromium and save as PNG",
+    "dataTypeList": [
+        "url"
+    ],
+    "baseConfig": "Headless_Chromium",
+    "command": "HeadlessChromium/HeadlessChromium.py",
+    "config": {
+        "service": "screenshot"
+    },
+    "configurationItems": [
+        {
+            "name": "thehive_url",
+            "description": "URL pointing to your TheHive installation, e.g. 'http://127.0.0.1:9000'",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "thehive_apikey",
+            "description": "TheHive API key which is used to add the downloaded file back to the alert/case",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "binary_path",
+            "description": "Path to binary",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "user_agent",
+            "description": "User Agent to send, default is Firefox 77.",
+            "type": "string",
+            "multi": false,
+            "required": false
+        },
+        {
+            "name": "window_size_x",
+            "description": "Window size for screenshot, default is 1920",
+            "type": "number",
+            "multi": false,
+            "required": false
+        },
+        {
+            "name": "window_size_y",
+            "description": "Window size for screenshot, default is 2160",
+            "type": "number",
+            "multi": false,
+            "required": false
+        }
+    ]
+}
