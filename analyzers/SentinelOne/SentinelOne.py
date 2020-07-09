@@ -49,7 +49,6 @@ class SentinelOne(Analyzer):
         self.hours_ago = int(self.get_param("config.s1_hours_ago", DEFAULT_HOURS_AGO))
         if self.hours_ago < 1:
             self.error("hours_ago must be greater than 0")
-            raise ValueError
 
         self.headers = {
             "Authorization": "ApiToken " + self.s1_api_key,
