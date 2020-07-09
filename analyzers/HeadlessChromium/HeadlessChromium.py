@@ -39,7 +39,7 @@ class HeadlessChromium(Analyzer):
 
         self.data = self.get_data()
 
-        self.service = self.get_data("config.service")
+        self.service = self.get_param("config.service")
         if self.service not in SERVICES:
             self.error("bad service")
 
