@@ -47,7 +47,7 @@ class HeadlessChromium(Analyzer):
 def run(self):
     if self.service == "screenshot":
         letters = string.ascii_letters
-        tmp_profile_path = "/tmp" + "".join(random.choice(letters) for i in range(13))
+        tmp_profile_path = "/tmp/" + "".join(random.choice(letters) for i in range(13))
         command_parts = [
             self.binary_path,
             "--headless",
