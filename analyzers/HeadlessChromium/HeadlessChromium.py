@@ -68,16 +68,15 @@ def run(self):
         api = TheHiveApi(self.thehive_url, self.thehive_apikey)
         file_observable = CaseObservable(
             dataType="file",
-            data=[filename],
+            data=[filename,],
             tlp=self.get_param("data.tlp"),
-            ioc=True,
             tags=["screenshot", "png", "parent:" + self.get_param("data.data"),],
             message="retrieved through headless Chromium",
         )
         res = api.create_case_observable(
             self.get_param("data._parent"), file_observable
         )
-        self.report({"message": str(response.status_code) + " " + response.text})
+        self.report({"message": f"{res.status_code} {res.text}"})
 
 
 if __name__ == "__main__":
