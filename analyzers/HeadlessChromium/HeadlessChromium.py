@@ -5,11 +5,11 @@ import random
 import string
 import subprocess
 import tempfile
+from pathlib import Path
 from shutil import copyfileobj
 
 import iocextract
 from cortexutils.analyzer import Analyzer
-
 
 SERVICES = ("screenshot", "dom")
 
@@ -90,6 +90,7 @@ class HeadlessChromium(Analyzer):
     def run(self):
         letters = string.ascii_letters
         tmp_profile_path = "/tmp/" + "".join(random.choice(letters) for i in range(13))
+        Path(tmp_profile_path).mkdir(exist_ok=True)
 
         if self.service == "screenshot":
             filename = os.path.join(self.cwd, "screenshot.png")
