@@ -9,9 +9,7 @@ from shutil import copyfileobj
 
 import iocextract
 from cortexutils.analyzer import Analyzer
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexers.html import HtmlLexer
+
 
 SERVICES = ("screenshot", "dom")
 
@@ -132,17 +130,7 @@ class HeadlessChromium(Analyzer):
                 encoding="UTF-8",
             )
 
-            plain_html = completed_process.stdout
-            self.report(
-                {
-                    "plain_html": plain_html,
-                    "formatted_html": highlight(
-                        plain_html,
-                        HtmlLexer(),
-                        HtmlFormatter(linenos=True, cssclass="source"),
-                    ),
-                }
-            )
+            self.report({"html": completed_process.stdout})
 
 
 if __name__ == "__main__":
