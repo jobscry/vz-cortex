@@ -41,6 +41,19 @@ class HeadlessChromium(Analyzer):
 
         self.filename = None
 
+    def get_domain_from_url(self, url: str) -> str:
+        domain = urlsplit(url).netloc
+
+        # check for port in url e.g.`test.com:8080`
+        if ":" in domain:
+            domain = domain.split(":")[0]
+
+        # check for user e.g. "joe@test.com"
+        if "@" in domain:
+            domain = domain.split("@")[1]
+
+        return domain
+
     def summary(self, raw):
         return {}
 
@@ -79,7 +92,8 @@ class HeadlessChromium(Analyzer):
                     {
                         "dataType": data_type,
                         "file": os.path.basename(filename),
-                        "filename": os.path.basename(data),
+                        "filename": self.get_domain_from_url(self.data)
+                        + "-screenshot.png",
                     }
                 )
                 return kwargs
@@ -94,9 +108,10 @@ class HeadlessChromium(Analyzer):
         Path(tmp_profile_path).mkdir(exist_ok=True)
 
         if self.service == "screenshot":
+
             filename = os.path.join(self.cwd, "screenshot.png")
             if os.path.exists(filename):
-                os.remove(filename)
+                Path(filename).unlink()
 
             command_parts = [
                 self.binary_path,
