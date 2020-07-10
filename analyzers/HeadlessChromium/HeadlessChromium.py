@@ -52,6 +52,7 @@ class HeadlessChromium(Analyzer):
         else:
             artifacts = []
             raw_str = str(raw)
+            raw_str = raw_str.replace('\\"', '"')
             urls = set(iocextract.extract_urls(raw_str))
             ipv4s = set(iocextract.extract_ipv4s(raw_str))
             mail_addresses = set(iocextract.extract_emails(raw_str))
