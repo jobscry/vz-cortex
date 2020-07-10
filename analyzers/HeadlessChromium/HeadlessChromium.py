@@ -51,7 +51,7 @@ class HeadlessChromium(Analyzer):
             ]
         else:
             artifacts = []
-            raw_str = str(raw["html"])
+            raw_str = str(raw)
             urls = set(iocextract.extract_urls(raw_str))
             ipv4s = set(iocextract.extract_ipv4s(raw_str))
             mail_addresses = set(iocextract.extract_emails(raw_str))
@@ -107,16 +107,17 @@ class HeadlessChromium(Analyzer):
                 self.data,
             ]
             completed_process = subprocess.run(
-                command_parts, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                command_parts,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="utf-8",
             )
 
             if not os.path.exists(filename):
-                self.error(
-                    "Missing screenshot. " + completed_process.stderr.decode("utf-8")
-                )
+                self.error("Missing screenshot. " + completed_process.stderr)
             else:
                 self.filename = filename
-                self.report({"results": "created screenshot"})
+                self.report({"result": "created screenshot"})
         elif self.service == "dom":
             command_parts = [
                 self.binary_path,
@@ -133,7 +134,9 @@ class HeadlessChromium(Analyzer):
                 encoding="UTF-8",
             )
 
-            self.report({"html": completed_process.stdout})
+            self.report(
+                {"html": completed_process.stdout, "stderr": completed_process.stderr,}
+            )
 
 
 if __name__ == "__main__":
