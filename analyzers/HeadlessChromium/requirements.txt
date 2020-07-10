@@ -1,2 +1,4 @@
+pygments
+iocextractor
 cortexutils
 thehive4py

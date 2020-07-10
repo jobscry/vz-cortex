@@ -7,11 +7,13 @@ import subprocess
 import tempfile
 from shutil import copyfileobj
 
+import iocextract
 from cortexutils.analyzer import Analyzer
-from thehive4py.api import TheHiveApi
-from thehive4py.models import Case, CaseObservable
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers.html import HtmlLexer
 
-SERVICES = ("screenshot",)
+SERVICES = ("screenshot", "dom")
 
 
 class HeadlessChromium(Analyzer):
@@ -19,12 +21,6 @@ class HeadlessChromium(Analyzer):
         Analyzer.__init__(self)
 
         # user configurable settings
-        self.thehive_url = self.get_param(
-            "config.thehive_url", None, "TheHive URL missing!"
-        )
-        self.thehive_apikey = self.get_param(
-            "config.thehive_apikey", None, "TheHive API key missing!"
-        )
         self.binary_path = self.get_param(
             "config.binary_path", None, "Missing binary path!"
         )
@@ -55,7 +51,23 @@ class HeadlessChromium(Analyzer):
             return [
                 self.build_artifact("file", self.filename),
             ]
-        return []
+        else:
+            artifacts = []
+            raw_str = str(raw["plain_html"])
+            urls = set(iocextract.extract_urls(raw_str))
+            ipv4s = set(iocextract.extract_ipv4s(raw_str))
+            mail_addresses = set(iocextract.extract_emails(raw_str))
+
+            if urls:
+                for u in urls:
+                    artifacts.append(self.build_artifact("url", str(u)))
+            if ipv4s:
+                for i in ipv4s:
+                    artifacts.append(self.build_artifact("ip", str(i)))
+            if mail_addresses:
+                for e in mail_addresses:
+                    artifacts.append(self.build_artifact("mail", str(e)))
+            return artifacts
 
     def build_artifact(self, data_type, data, **kwargs):
         if data_type == "file":
@@ -78,15 +90,14 @@ class HeadlessChromium(Analyzer):
             return kwargs
 
     def run(self):
+        letters = string.ascii_letters
+        tmp_profile_path = "/tmp/" + "".join(random.choice(letters) for i in range(13))
+
         if self.service == "screenshot":
             filename = os.path.join(self.cwd, "screenshot.png")
             if os.path.exists(filename):
                 os.remove(filename)
 
-            letters = string.ascii_letters
-            tmp_profile_path = "/tmp/" + "".join(
-                random.choice(letters) for i in range(13)
-            )
             command_parts = [
                 self.binary_path,
                 "--headless",
@@ -105,6 +116,33 @@ class HeadlessChromium(Analyzer):
             else:
                 self.filename = filename
                 self.report({"results": "created screenshot"})
+        elif self.service == "dom":
+            command_parts = [
+                self.binary_path,
+                "--headless",
+                "--user-data-dir=" + tmp_profile_path,
+                f'--user-agent="{self.user_agent}"',
+                "--dump-dom",
+                self.data,
+            ]
+            completed_process = subprocess.run(
+                command_parts,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                encoding="UTF-8",
+            )
+
+            plain_html = completed_process.stdout
+            self.report(
+                {
+                    "plain_html": plain_html,
+                    "formatted_html": highlight(
+                        plain_html,
+                        HtmlLexer(),
+                        HtmlFormatter(linenos=True, cssclass="source"),
+                    ),
+                }
+            )
 
 
 if __name__ == "__main__":

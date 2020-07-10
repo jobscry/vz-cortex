@@ -1,0 +1,32 @@
+{
+    "name": "Headless_Chromium_DOM",
+    "version": "1.0",
+    "author": "Joe Vasquez",
+    "url": "https://github.com/jobscry/vz-cortex",
+    "license": "GPL-V3",
+    "description": "Extract DOM from URL with headless Chromium",
+    "dataTypeList": [
+        "url"
+    ],
+    "baseConfig": "Headless_Chromium",
+    "command": "HeadlessChromium/HeadlessChromium.py",
+    "config": {
+        "service": "dom"
+    },
+    "configurationItems": [
+        {
+            "name": "binary_path",
+            "description": "Path to binary",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "user_agent",
+            "description": "User Agent to send, default is Firefox 77.",
+            "type": "string",
+            "multi": false,
+            "required": false
+        }
+    ]
+}
