@@ -110,7 +110,7 @@ class HeadlessChromium(Analyzer):
             )
 
             if not os.path.exists(filename):
-                self.error("Missing screenshot.")
+                self.error("Missing screenshot. " + completed_process.stderr)
             else:
                 self.filename = filename
                 self.report({"results": "created screenshot"})
