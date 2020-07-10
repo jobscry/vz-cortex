@@ -15,20 +15,6 @@
     },
     "configurationItems": [
         {
-            "name": "thehive_url",
-            "description": "URL pointing to your TheHive installation, e.g. 'http://127.0.0.1:9000'",
-            "type": "string",
-            "multi": false,
-            "required": true
-        },
-        {
-            "name": "thehive_apikey",
-            "description": "TheHive API key which is used to add the downloaded file back to the alert/case",
-            "type": "string",
-            "multi": false,
-            "required": true
-        },
-        {
             "name": "binary_path",
             "description": "Path to binary",
             "type": "string",
