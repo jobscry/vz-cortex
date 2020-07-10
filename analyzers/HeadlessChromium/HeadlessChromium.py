@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from shutil import copyfileobj
+from urllib.parse import urlsplit
 
 import iocextract
 from cortexutils.analyzer import Analyzer
