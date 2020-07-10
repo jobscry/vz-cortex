@@ -51,7 +51,7 @@ class HeadlessChromium(Analyzer):
             ]
         else:
             artifacts = []
-            raw_str = str(raw["plain_html"])
+            raw_str = str(raw["html"])
             urls = set(iocextract.extract_urls(raw_str))
             ipv4s = set(iocextract.extract_ipv4s(raw_str))
             mail_addresses = set(iocextract.extract_emails(raw_str))
@@ -110,7 +110,9 @@ class HeadlessChromium(Analyzer):
             )
 
             if not os.path.exists(filename):
-                self.error("Missing screenshot. " + completed_process.stderr)
+                self.error(
+                    "Missing screenshot. " + completed_process.stderr.decode("utf-8")
+                )
             else:
                 self.filename = filename
                 self.report({"results": "created screenshot"})
