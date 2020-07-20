@@ -128,12 +128,13 @@ class Elasticsearch(Analyzer):
 
                 for hit in json_data["hits"]["hits"]:
                     ip = hit["_source"]["source"]["ip"]
-                    event_code = hit["_source"]["source"]["ip"]
+                    event_code = hit["_source"]["event"]["code"]
 
                     item = {
                         "host": hit["_source"]["agent"]["hostname"],
                         "timestamp": hit["_source"]["@timestamp"],
                         "ip": ip,
+                        "event_code": event_code,
                     }
 
                     if event_code == WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE:
