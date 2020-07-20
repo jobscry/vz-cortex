@@ -9,7 +9,7 @@
         "user"
     ],
     "baseConfig": "elasticsearch",
-    "command": "elasticsearch/elasticsearch.py",
+    "command": "Elasticsearch/elasticsearch.py",
     "config": {
         "service": "windows-user-login-ips"
     },
