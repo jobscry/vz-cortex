@@ -137,17 +137,21 @@ class Elasticsearch(Analyzer):
                     }
 
                     if event_code == WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE:
-                        logon_type = hit["_source"]["winlog"]["event_data"]["LogonType"]
                         data["successful_logon_ips"].add(ip)
                         item["outcome"] = "success"
+
+                    else:
+                        data["unsuccessful_logon_ips"].add(ip)
+                        item["outcome"] = "failure"
+
+                    if "LogonType" in hit["_source"]["winlog"]["event_data"]:
+                        logon_type = hit["_source"]["winlog"]["event_data"]["LogonType"]
                         item["logon_type"] = logon_type
                         item["verbose_logon_type"] = WINDOWS_SUCCESSFUL_LOGON_TYPES.get(
                             logon_type, "unknown"
                         )
-                    else:
+                    if "SubStatus" in hit["_source"]["winlog"]["event_data"]:
                         substatus = hit["_source"]["winlog"]["event_data"]["SubStatus"]
-                        data["unsuccessful_logon_ips"].add(ip)
-                        item["outcome"] = "failure"
                         item["substatus"] = substatus
                         item[
                             "verbose_substatus"
