@@ -18,6 +18,10 @@ These need a path to local copy of Chromium/Chrome binary.  **Do not** use snap 
 * **DOM** - Pulls rendered DOM for URL observable.
 * **Screenshot** - Pulls screenshot for URL observable.
 
+### HTTPInfo
+
+* **Redirects** - Returns redirect history for URL observable using HTTP HEAD request and Python Requests libarary.
+
 ### SentinelOne
 
 * **DeepVisibility DNSQuery** - Pulls list of systems ("host" observable) that made DNS requests to URL, FQDN, or DNS.  URLs are parsed with Python's urlsplit.  Uses SentinelOne's API, specifically DeepVisibility.
