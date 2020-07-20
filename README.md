@@ -20,7 +20,7 @@ These need a path to local copy of Chromium/Chrome binary.  **Do not** use snap 
 
 ### HTTPInfo
 
-* **Redirects** - Returns redirect history for URL observable using HTTP HEAD request and Python Requests libarary.
+* **Redirects** - Returns redirect history for URL observable using HTTP HEAD request and Python Requests library.
 
 ### SentinelOne
 
