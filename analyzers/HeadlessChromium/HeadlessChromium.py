@@ -42,6 +42,8 @@ class HeadlessChromium(Analyzer):
 
         self.filename = None
 
+        self.proxies = self.get_param("config.proxy", None)
+
     def get_domain_from_url(self, url: str) -> str:
         domain = urlsplit(url).netloc
 
@@ -108,6 +110,8 @@ class HeadlessChromium(Analyzer):
         tmp_profile_path = "/tmp/" + "".join(random.choice(letters) for i in range(13))
         Path(tmp_profile_path).mkdir(exist_ok=True)
 
+        url = self.data
+
         if self.service == "screenshot":
 
             filename = os.path.join(self.cwd, "screenshot.png")
@@ -121,8 +125,14 @@ class HeadlessChromium(Analyzer):
                 "--window-size=" + self.window_size,
                 f'--user-agent="{self.user_agent}"',
                 "--screenshot",
-                self.data,
             ]
+
+            proxy = self._get_proxy_args(url)
+            if proxy is not None:
+                command_parts.append(proxy)
+
+            command_parts.append(["--screenshot", url])
+
             completed_process = subprocess.run(
                 command_parts,
                 stdout=subprocess.PIPE,
@@ -141,9 +151,14 @@ class HeadlessChromium(Analyzer):
                 "--headless",
                 "--user-data-dir=" + tmp_profile_path,
                 f'--user-agent="{self.user_agent}"',
-                "--dump-dom",
-                self.data,
             ]
+
+            proxy = self._get_proxy_args(url)
+            if proxy is not None:
+                command_parts.append(proxy)
+
+            command_parts.append(["--dump-dom", url])
+
             completed_process = subprocess.run(
                 command_parts,
                 stdout=subprocess.PIPE,
@@ -154,6 +169,16 @@ class HeadlessChromium(Analyzer):
             self.report(
                 {"html": completed_process.stdout, "stderr": completed_process.stderr,}
             )
+
+    def _get_proxy_args(self, url):
+        if self.proxies:
+            if url.startswith("https"):
+                if "https" in self.proxies:
+                    return "--proxy_server=" + self.proxies["https"]
+            elif url.startswith("http"):
+                if "http" in self.proxies:
+                    return "--proxy_server=" + self.proxies["http"]
+        return None
 
 
 if __name__ == "__main__":

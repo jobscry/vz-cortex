@@ -66,6 +66,8 @@ class Elasticsearch(Analyzer):
         if self.service not in SERVICES:
             self.error("bad service")
 
+        self.proxies = self.get_param("config.proxy", None)
+
     def run(self):
         if self.service == "vpn-logons-ips":
             pass
@@ -116,6 +118,7 @@ class Elasticsearch(Analyzer):
                 headers=self.headers,
                 auth=(self.username, self.password),
                 json=data,
+                proxies=self.proxies,
             )
 
             if response.status_code == requests.codes.ok:

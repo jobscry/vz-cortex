@@ -25,6 +25,8 @@ class HTTPInfo(Analyzer):
         if self.service not in SERVICES:
             self.error("bad service")
 
+        self.proxies = self.get_param("config.proxy", None)
+
     def artifacts(self, raw):
         artifacts = []
         if self.service == "redirects":
@@ -34,7 +36,12 @@ class HTTPInfo(Analyzer):
 
     def run(self):
         if self.service == "redirects":
-            res = requests.head(self.data, allow_redirects=True, headers=self.headers)
+            res = requests.head(
+                self.data,
+                allow_redirects=True,
+                headers=self.headers,
+                proxies=self.proxies,
+            )
 
             history = {}
             i = 0

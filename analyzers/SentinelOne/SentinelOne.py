@@ -65,11 +65,14 @@ class SentinelOne(Analyzer):
         self.s1_api_endpoints = S1_API_ENDPOINTS
         self.s1_datetime_format = DATETIME_FORMAT
 
+        self.proxies = self.get_param("config.proxy", None)
+
     def _check_query_status(self, query_id: str) -> Tuple[bool, bool]:
         response = requests.get(
             self.s1_console_url + self.s1_api_endpoints["check-query-status"],
             headers=self.headers,
             params={"queryId": query_id},
+            proxies=self.proxies,
         )
         """Check Query Status
         Returns tuple of done, error
@@ -103,6 +106,7 @@ class SentinelOne(Analyzer):
                 "accountIds": [self.s1_account_id,],
                 "queryType": ["events",],
             },
+            proxies=self.proxies,
         )
         if response.status_code == requests.codes.ok:
             data = response.json()
@@ -131,6 +135,7 @@ class SentinelOne(Analyzer):
                 self.s1_console_url + self.s1_api_endpoints["get-events"],
                 headers=self.headers,
                 params=params,
+                proxies=self.proxies,
             )
 
             if response.status_code != requests.codes.ok:

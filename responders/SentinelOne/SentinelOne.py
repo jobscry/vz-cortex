@@ -36,6 +36,8 @@ class SentinelOne(Responder):
         self.sha1_re = re.compile(r"^[A-Za-z0-9]{40}$")
         self.s1_blacklist_api_endpoint = "/web/api/v2.1/restrictions"
 
+        self.proxies = self.get_param("config.proxy", None)
+
     def run(self):
         Responder.run(self)
 
@@ -69,6 +71,7 @@ class SentinelOne(Responder):
                     },
                     "filter": {"accountIds": [self.s1_account_id,]},
                 },
+                proxies=self.proxies,
             )
 
             if response.status_code == requests.codes.ok:
