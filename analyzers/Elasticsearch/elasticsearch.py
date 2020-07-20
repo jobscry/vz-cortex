@@ -159,9 +159,11 @@ class Elasticsearch(Analyzer):
 
                     data["logon_info"].append(item)
 
-                data["total_ips"] = len(data["ips"])
                 data["successful_logon_ips"] = list(data["successful_logon_ips"])
                 data["unsuccessful_logon_ips"] = list(data["unsuccessful_logon_ips"])
+                data["total_ips"] = len(data["successful_logon_ips"]) + len(
+                    data["unsuccessful_logon_ips"]
+                )
 
                 self.report(data)
 
