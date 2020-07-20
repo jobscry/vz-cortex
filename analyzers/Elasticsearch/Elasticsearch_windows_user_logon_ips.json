@@ -48,6 +48,13 @@
             "type": "number",
             "multi": false,
             "required": false
+        },
+        {
+            "name": "ca_cert_path",
+            "description": "Custom path for CA cert if required.",
+            "type": "number",
+            "multi": false,
+            "required": false
         }
     ]
 }

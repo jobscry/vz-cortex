@@ -66,6 +66,8 @@ class Elasticsearch(Analyzer):
         if self.service not in SERVICES:
             self.error("bad service")
 
+        self.verify = self.get_param("ca_cert_path", True)
+
         self.proxies = self.get_param("config.proxy", None)
 
     def run(self):
@@ -119,6 +121,7 @@ class Elasticsearch(Analyzer):
                 auth=(self.username, self.password),
                 json=data,
                 proxies=self.proxies,
+                verify=self.verify
             )
 
             if response.status_code == requests.codes.ok:
