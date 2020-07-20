@@ -25,6 +25,8 @@ These need a path to local copy of Chromium/Chrome binary.  **Do not** use snap 
 ### SentinelOne
 
 * **DeepVisibility DNSQuery** - Pulls list of systems ("host" observable) that made DNS requests to URL, FQDN, or DNS.  URLs are parsed with Python's urlsplit.  Uses SentinelOne's API, specifically DeepVisibility.
+  * **todo**
+    * currently using "DNSRequest contains", this can match more than initial observable, should add more info to response with unique list of domains containing initial observable.
 
 ## Responders
 
