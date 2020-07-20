@@ -41,4 +41,4 @@ These need a path to local copy of Chromium/Chrome binary.  **Do not** use snap 
 
 ## TODO
 
-* should be checking for proxy, cacert settings and using them if available
+* should be ~~checking for proxy~~, cacert settings and using them if available
