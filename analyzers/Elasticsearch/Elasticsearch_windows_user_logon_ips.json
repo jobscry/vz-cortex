@@ -4,7 +4,7 @@
     "author": "Joe Vasquez",
     "url": "https://github.com/jobscry/vz-cortex",
     "license": "GPL-V3",
-    "description": "Get list of IPs for successful and unsucceful logon/logon attempts with provided username.",
+    "description": "Get list of IPs for successful and unsuccessful logon/logon attempts with provided username.",
     "dataTypeList": [
         "user"
     ],
