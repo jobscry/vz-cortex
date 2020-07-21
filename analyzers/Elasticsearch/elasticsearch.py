@@ -72,7 +72,7 @@ class Elasticsearch(Analyzer):
         self.proxies = self.get_param("config.proxy", None)
 
     def run(self):
-        error = False
+        data = dict()
         if self.service == "cisco-vpn-user-login-ips":
             data = {
                 "_source": ["user.name", "source.ip", "@timestamp"],
@@ -101,7 +101,9 @@ class Elasticsearch(Analyzer):
                 verify=self.verify,
             )
 
-            if response.status_code == requests.codes.ok:
+            if response.status_code != requests.codes.ok:
+                self._http_status_error(response.status_code)
+            else:
                 json_data = response.json()
 
                 data = dict()
@@ -121,8 +123,6 @@ class Elasticsearch(Analyzer):
 
                 data["successful_logon_ips"] = list(data["successful_logon_ips"])
                 data["total_ips"] = len(data["successful_logon_ips"])
-            else:
-                error = True
 
         elif self.service == "windows-user-login-ips":
             # search for user logons
@@ -175,10 +175,10 @@ class Elasticsearch(Analyzer):
                 verify=self.verify,
             )
 
-            if response.status_code == requests.codes.ok:
-                json_data = response.json()
+            if response.status_code != requests.codes.ok:
+                self._http_status_error(response.status_code)
+            else:
 
-                data = dict()
                 data["successful_logon_ips"] = set()
                 data["unsuccessful_logon_ips"] = set()
                 data["logon_info"] = list()
@@ -223,15 +223,10 @@ class Elasticsearch(Analyzer):
                     data["unsuccessful_logon_ips"]
                 )
 
-            else:
-                error = True
+        self.report(data)
 
-            if error:
-                self.error(
-                    f"Unable to complete request. Status code: {response.status_code}"
-                )
-            else:
-                self.report(data)
+    def _http_status_error(self, status_code):
+        self.error(f"Unable to complete request. Status code: {status_code}")
 
 
 if __name__ == "__main__":
