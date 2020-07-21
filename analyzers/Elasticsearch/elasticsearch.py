@@ -177,6 +177,7 @@ class Elasticsearch(Analyzer):
             if response.status_code != requests.codes.ok:
                 self._http_status_error(response.status_code)
             else:
+                json_data = response.json()
 
                 results["successful_logon_ips"] = set()
                 results["unsuccessful_logon_ips"] = set()
