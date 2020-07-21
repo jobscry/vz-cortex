@@ -72,7 +72,7 @@ class Elasticsearch(Analyzer):
         self.proxies = self.get_param("config.proxy", None)
 
     def run(self):
-        data = dict()
+        results = dict()
         if self.service == "cisco-vpn-user-login-ips":
             data = {
                 "_source": ["user.name", "source.ip", "@timestamp"],
@@ -106,9 +106,8 @@ class Elasticsearch(Analyzer):
             else:
                 json_data = response.json()
 
-                data = dict()
-                data["successful_logon_ips"] = set()
-                data["logon_info"] = list()
+                results["successful_logon_ips"] = set()
+                results["logon_info"] = list()
 
                 for hit in json_data["hits"]["hits"]:
                     ip = hit["_source"]["source"]["ip"]
@@ -117,12 +116,12 @@ class Elasticsearch(Analyzer):
                         "timestamp": hit["_source"]["@timestamp"],
                         "ip": ip,
                     }
-                    data["successful_logon_ips"].add(ip)
+                    results["successful_logon_ips"].add(ip)
 
-                    data["logon_info"].append(item)
+                    results["logon_info"].append(item)
 
-                data["successful_logon_ips"] = list(data["successful_logon_ips"])
-                data["total_ips"] = len(data["successful_logon_ips"])
+                results["successful_logon_ips"] = list(results["successful_logon_ips"])
+                results["total_ips"] = len(results["successful_logon_ips"])
 
         elif self.service == "windows-user-login-ips":
             # search for user logons
@@ -179,9 +178,9 @@ class Elasticsearch(Analyzer):
                 self._http_status_error(response.status_code)
             else:
 
-                data["successful_logon_ips"] = set()
-                data["unsuccessful_logon_ips"] = set()
-                data["logon_info"] = list()
+                results["successful_logon_ips"] = set()
+                results["unsuccessful_logon_ips"] = set()
+                results["logon_info"] = list()
 
                 for hit in json_data["hits"]["hits"]:
                     ip = hit["_source"]["source"]["ip"]
@@ -195,11 +194,11 @@ class Elasticsearch(Analyzer):
                     }
 
                     if event_code == WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE:
-                        data["successful_logon_ips"].add(ip)
+                        results["successful_logon_ips"].add(ip)
                         item["outcome"] = "success"
 
                     else:
-                        data["unsuccessful_logon_ips"].add(ip)
+                        results["unsuccessful_logon_ips"].add(ip)
                         item["outcome"] = "failure"
 
                     if "LogonType" in hit["_source"]["winlog"]["event_data"]:
@@ -215,15 +214,17 @@ class Elasticsearch(Analyzer):
                             "verbose_substatus"
                         ] = WINDOWS_UNSUCCESSFUL_LOGON_CODES.get(substatus, "unknown")
 
-                    data["logon_info"].append(item)
+                    results["logon_info"].append(item)
 
-                data["successful_logon_ips"] = list(data["successful_logon_ips"])
-                data["unsuccessful_logon_ips"] = list(data["unsuccessful_logon_ips"])
-                data["total_ips"] = len(data["successful_logon_ips"]) + len(
-                    data["unsuccessful_logon_ips"]
+                results["successful_logon_ips"] = list(results["successful_logon_ips"])
+                results["unsuccessful_logon_ips"] = list(
+                    results["unsuccessful_logon_ips"]
+                )
+                results["total_ips"] = len(results["successful_logon_ips"]) + len(
+                    results["unsuccessful_logon_ips"]
                 )
 
-        self.report(data)
+        self.report(results)
 
     def _http_status_error(self, status_code):
         self.error(f"Unable to complete request. Status code: {status_code}")
