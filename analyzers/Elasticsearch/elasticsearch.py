@@ -3,7 +3,7 @@
 import requests
 from cortexutils.analyzer import Analyzer
 
-SERVICES = "windows-user-login-ips"
+SERVICES = ("windows-user-login-ips", "cisco-vpn-user-login-ips")
 USER_AGENT = "vz-cortex/elasticsearch-1.0"
 WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE = 4624
 WINDOWS_UNSUCCESSFUL_LOGON_EVENT_CODE = 4625
@@ -32,6 +32,7 @@ WINDOWS_UNSUCCESSFUL_LOGON_CODES = {
     "0xC0000225": "evidently a bug in Windows and not a risk",
     "0xc000015b": "The user has not been granted the requested logon type (aka logon right) at this machine",
 }
+CISCO_VPN_MESSAGE_ID = "722051"
 MAX_RESULT_SIZE = 100
 DEFAULT_HOURS = 12
 
@@ -71,9 +72,59 @@ class Elasticsearch(Analyzer):
         self.proxies = self.get_param("config.proxy", None)
 
     def run(self):
-        if self.service == "vpn-logons-ips":
-            pass
-        if self.service == "windows-user-login-ips":
+        error = False
+        if self.service == "cisco-vpn-user-login-ips":
+            data = {
+                "_source": ["user.name", "source.ip", "@timestamp"],
+                "sort": [{"@timestamp": {"order": "desc"}}],
+                "size": MAX_RESULT_SIZE,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"exists": {"field": "source.ip"}},
+                            {"exists": {"field": "user.name"}},
+                            {"match": {"user.name": self.data}},
+                            {"match": {"cisco.asa.message_id": CISCO_VPN_MESSAGE_ID}},
+                        ],
+                        "filter": {
+                            "range": {"@timestamp": {"gte": f"now-{self.hours}h"}}
+                        },
+                    }
+                },
+            }
+            response = requests.get(
+                self.url + "/" + self.index + "/_search",
+                headers=self.headers,
+                auth=(self.username, self.password),
+                json=data,
+                proxies=self.proxies,
+                verify=self.verify,
+            )
+
+            if response.status_code == requests.codes.ok:
+                json_data = response.json()
+
+                data = dict()
+                data["successful_logon_ips"] = set()
+                data["logon_info"] = list()
+
+                for hit in json_data["hits"]["hits"]:
+                    ip = hit["_source"]["source"]["ip"]
+
+                    item = {
+                        "timestamp": hit["_source"]["@timestamp"],
+                        "ip": ip,
+                    }
+                    data["successful_logon_ips"].add(ip)
+
+                    data["logon_info"].append(item)
+
+                data["successful_logon_ips"] = list(data["successful_logon_ips"])
+                data["total_ips"] = len(data["successful_logon_ips"])
+            else:
+                error = True
+
+        elif self.service == "windows-user-login-ips":
             # search for user logons
             data = {
                 "_source": [
@@ -172,12 +223,15 @@ class Elasticsearch(Analyzer):
                     data["unsuccessful_logon_ips"]
                 )
 
-                self.report(data)
-
             else:
+                error = True
+
+            if error:
                 self.error(
                     f"Unable to complete request. Status code: {response.status_code}"
                 )
+            else:
+                self.report(data)
 
 
 if __name__ == "__main__":

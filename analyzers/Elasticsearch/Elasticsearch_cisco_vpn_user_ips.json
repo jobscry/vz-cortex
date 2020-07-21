@@ -1,0 +1,60 @@
+{
+    "name": "Elasticsearch_cisco_vpn_user_ips",
+    "version": "1.0",
+    "author": "Joe Vasquez",
+    "url": "https://github.com/jobscry/vz-cortex",
+    "license": "GPL-V3",
+    "description": "Get list of IPs for successful logons for CISCO VPN.",
+    "dataTypeList": [
+        "user"
+    ],
+    "baseConfig": "elasticsearch",
+    "command": "Elasticsearch/elasticsearch.py",
+    "config": {
+        "service": "cisco-vpn-user-login-ips"
+    },
+    "configurationItems": [
+        {
+            "name": "es_url",
+            "description": "URL for Elasticsearch",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "es_username",
+            "description": "Username for ES API",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "es_password",
+            "description": "Password for ES API",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "es_search_index",
+            "description": "Name of ES index to search",
+            "type": "string",
+            "multi": false,
+            "required": true
+        },
+        {
+            "name": "es_hours",
+            "description": "Number of hours from now to go back.  Defaults to 12 hours ago.",
+            "type": "number",
+            "multi": false,
+            "required": false
+        },
+        {
+            "name": "ca_cert_path",
+            "description": "Custom path for CA cert if required.",
+            "type": "string",
+            "multi": false,
+            "required": false
+        }
+    ]
+}
