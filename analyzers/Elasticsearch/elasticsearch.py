@@ -35,6 +35,7 @@ WINDOWS_UNSUCCESSFUL_LOGON_CODES = {
 CISCO_VPN_MESSAGE_ID = "722051"
 MAX_RESULT_SIZE = 100
 DEFAULT_HOURS = 12
+SAFE_IP_COUNT = 2
 
 
 class Elasticsearch(Analyzer):
@@ -70,6 +71,21 @@ class Elasticsearch(Analyzer):
         self.verify = self.get_param("config.ca_cert_path", True)
 
         self.proxies = self.get_param("config.proxy", None)
+
+    def summary(self, raw):
+        count = raw.get("total_ips", 0)
+        if count >= SAFE_IP_COUNT:
+            level = "safe"
+        else:
+            level = "suspicious"
+
+        predicate = "windows-login-ips"
+        if self.service == "cisco-vpn-user-login-ips":
+            predicate = "cisco-vpn-ips"
+
+        return {
+            "taxonomies": [self.build_taxonomy(level, "HTTP_INFO", "Redirects", count)]
+        }
 
     def run(self):
         results = dict()
