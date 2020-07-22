@@ -90,7 +90,6 @@ class Elasticsearch(Analyzer):
     def summary(self, raw):
         if self.service == "cisco-vpn-ip-login-users":
             count = raw.get("total_users", 0)
-            count = raw.get("total_ips", 0)
             if count <= SAFE_USER_COUNT:
                 level = "safe"
             else:
