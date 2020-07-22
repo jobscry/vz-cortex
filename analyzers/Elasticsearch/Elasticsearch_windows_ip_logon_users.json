@@ -1,17 +1,17 @@
 {
-    "name": "Elasticsearch_windows_user_logon_ips",
+    "name": "Elasticsearch_windows_user_ip_logons",
     "version": "1.0",
     "author": "Joe Vasquez",
     "url": "https://github.com/jobscry/vz-cortex",
     "license": "GPL-V3",
-    "description": "Get list of IPs for successful and unsuccessful logon/logon attempts with provided username.",
+    "description": "Get list of user names for successful and unsuccessful logon/logon attempts with provided IP.",
     "dataTypeList": [
         "user"
     ],
     "baseConfig": "elasticsearch",
     "command": "Elasticsearch/elasticsearch.py",
     "config": {
-        "service": "windows-user-login-ips"
+        "service": "windows-user-ip-logins"
     },
     "configurationItems": [
         {
