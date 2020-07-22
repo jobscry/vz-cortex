@@ -5,7 +5,11 @@ import re
 import requests
 from cortexutils.analyzer import Analyzer
 
-SERVICES = ("windows-user-login-ips", "cisco-vpn-user-login-ips")
+SERVICES = (
+    "windows-user-login-ips",
+    "cisco-vpn-user-login-ips",
+    "cisco-vpn-ip-login-users",
+)
 USER_AGENT = "vz-cortex/elasticsearch-1.0"
 WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE = 4624
 WINDOWS_UNSUCCESSFUL_LOGON_EVENT_CODE = 4625
@@ -38,6 +42,7 @@ CISCO_VPN_MESSAGE_ID = "722051"
 MAX_RESULT_SIZE = 100
 DEFAULT_HOURS = 12
 SAFE_IP_COUNT = 2
+SAFE_USER_COUNT = 2
 IGNORE_IPS_SAFE_CHARS = re.compile(r"^[0-9/\.\:,\s]+$")
 
 
@@ -83,15 +88,26 @@ class Elasticsearch(Analyzer):
         self.proxies = self.get_param("config.proxy", None)
 
     def summary(self, raw):
-        count = raw.get("total_ips", 0)
-        if count <= SAFE_IP_COUNT:
-            level = "safe"
-        else:
-            level = "suspicious"
+        if self.service == "cisco-vpn-ip-login-users":
+            count = raw.get("total_users", 0)
+            count = raw.get("total_ips", 0)
+            if count <= SAFE_USER_COUNT:
+                level = "safe"
+            else:
+                level = "suspicious"
 
-        predicate = "windows-login-ips"
-        if self.service == "cisco-vpn-user-login-ips":
-            predicate = "cisco-vpn-ips"
+            predicate = "cisco-vpn-ip-login-users"
+
+        else:
+            count = raw.get("total_ips", 0)
+            if count <= SAFE_IP_COUNT:
+                level = "safe"
+            else:
+                level = "suspicious"
+
+            predicate = "windows-login-ips"
+            if self.service == "cisco-vpn-user-login-ips":
+                predicate = "cisco-vpn-ips"
 
         return {"taxonomies": [self.build_taxonomy(level, "ES", predicate, count)]}
 
@@ -99,7 +115,43 @@ class Elasticsearch(Analyzer):
         results = dict()
         must_not = self._build_ignore_ips()
 
-        if self.service == "cisco-vpn-user-login-ips":
+        if self.service == "cisco-vpn-ip-login-users":
+            data = {
+                "_source": ["user.name", "source.ip", "@timestamp"],
+                "sort": [{"@timestamp": {"order": "desc"}}],
+                "size": MAX_RESULT_SIZE,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"exists": {"field": "source.ip"}},
+                            {"exists": {"field": "user.name"}},
+                            {"match": {"source.ip": self.data}},
+                            {"match": {"cisco.asa.message_id": CISCO_VPN_MESSAGE_ID}},
+                        ],
+                        "filter": {
+                            "range": {"@timestamp": {"gte": f"now-{self.hours}h"}}
+                        },
+                    }
+                },
+            }
+
+            json_data = self._get_response(data)
+
+            results["successful_logon_users"] = set()
+            results["logon_info"] = list()
+
+            for hit in json_data["hits"]["hits"]:
+                user = hit["_source"]["user"]["name"]
+
+                item = {"timestamp": hit["_source"]["@timestamp"], "user": user}
+                results["successful_logon_users"].add(ip)
+
+                results["logon_info"].append(item)
+
+            results["successful_logon_users"] = list(results["successful_logon_users"])
+            results["total_users"] = len(results["successful_logon_users"])
+
+        elif self.service == "cisco-vpn-user-login-ips":
             data = {
                 "_source": ["user.name", "source.ip", "@timestamp"],
                 "sort": [{"@timestamp": {"order": "desc"}}],
@@ -122,36 +174,24 @@ class Elasticsearch(Analyzer):
             if must_not is not None:
                 data["query"]["bool"]["must_not"] = must_not
 
-            response = requests.get(
-                self.url + "/" + self.index + "/_search",
-                headers=self.headers,
-                auth=(self.username, self.password),
-                json=data,
-                proxies=self.proxies,
-                verify=self.verify,
-            )
+            json_data = self._get_response(data)
 
-            if response.status_code != requests.codes.ok:
-                self._http_status_error(response.status_code)
-            else:
-                json_data = response.json()
+            results["successful_logon_ips"] = set()
+            results["logon_info"] = list()
 
-                results["successful_logon_ips"] = set()
-                results["logon_info"] = list()
+            for hit in json_data["hits"]["hits"]:
+                ip = hit["_source"]["source"]["ip"]
 
-                for hit in json_data["hits"]["hits"]:
-                    ip = hit["_source"]["source"]["ip"]
+                item = {
+                    "timestamp": hit["_source"]["@timestamp"],
+                    "ip": ip,
+                }
+                results["successful_logon_ips"].add(ip)
 
-                    item = {
-                        "timestamp": hit["_source"]["@timestamp"],
-                        "ip": ip,
-                    }
-                    results["successful_logon_ips"].add(ip)
+                results["logon_info"].append(item)
 
-                    results["logon_info"].append(item)
-
-                results["successful_logon_ips"] = list(results["successful_logon_ips"])
-                results["total_ips"] = len(results["successful_logon_ips"])
+            results["successful_logon_ips"] = list(results["successful_logon_ips"])
+            results["total_ips"] = len(results["successful_logon_ips"])
 
         elif self.service == "windows-user-login-ips":
             # search for user logons
@@ -198,70 +238,67 @@ class Elasticsearch(Analyzer):
             if must_not is not None:
                 data["query"]["bool"]["must_not"] = must_not
 
-            response = requests.get(
-                self.url + "/" + self.index + "/_search",
-                headers=self.headers,
-                auth=(self.username, self.password),
-                json=data,
-                proxies=self.proxies,
-                verify=self.verify,
+            json_data = self._get_response(data)
+
+            results["successful_logon_ips"] = set()
+            results["unsuccessful_logon_ips"] = set()
+            results["logon_info"] = list()
+
+            for hit in json_data["hits"]["hits"]:
+                ip = hit["_source"]["source"]["ip"]
+                event_code = hit["_source"]["event"]["code"]
+
+                item = {
+                    "host": hit["_source"]["agent"]["hostname"],
+                    "timestamp": hit["_source"]["@timestamp"],
+                    "ip": ip,
+                    "event_code": event_code,
+                }
+
+                if event_code == WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE:
+                    results["successful_logon_ips"].add(ip)
+                    item["outcome"] = "success"
+
+                else:
+                    results["unsuccessful_logon_ips"].add(ip)
+                    item["outcome"] = "failure"
+
+                if "LogonType" in hit["_source"]["winlog"]["event_data"]:
+                    logon_type = hit["_source"]["winlog"]["event_data"]["LogonType"]
+                    item["logon_type"] = logon_type
+                    item["verbose_logon_type"] = WINDOWS_SUCCESSFUL_LOGON_TYPES.get(
+                        logon_type, "unknown"
+                    )
+                if "SubStatus" in hit["_source"]["winlog"]["event_data"]:
+                    substatus = hit["_source"]["winlog"]["event_data"]["SubStatus"]
+                    item["substatus"] = substatus
+                    item["verbose_substatus"] = WINDOWS_UNSUCCESSFUL_LOGON_CODES.get(
+                        substatus, "unknown"
+                    )
+
+                results["logon_info"].append(item)
+
+            results["successful_logon_ips"] = list(results["successful_logon_ips"])
+            results["unsuccessful_logon_ips"] = list(results["unsuccessful_logon_ips"])
+            results["total_ips"] = len(results["successful_logon_ips"]) + len(
+                results["unsuccessful_logon_ips"]
             )
-
-            if response.status_code != requests.codes.ok:
-                self._http_status_error(response.status_code)
-            else:
-                json_data = response.json()
-
-                results["successful_logon_ips"] = set()
-                results["unsuccessful_logon_ips"] = set()
-                results["logon_info"] = list()
-
-                for hit in json_data["hits"]["hits"]:
-                    ip = hit["_source"]["source"]["ip"]
-                    event_code = hit["_source"]["event"]["code"]
-
-                    item = {
-                        "host": hit["_source"]["agent"]["hostname"],
-                        "timestamp": hit["_source"]["@timestamp"],
-                        "ip": ip,
-                        "event_code": event_code,
-                    }
-
-                    if event_code == WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE:
-                        results["successful_logon_ips"].add(ip)
-                        item["outcome"] = "success"
-
-                    else:
-                        results["unsuccessful_logon_ips"].add(ip)
-                        item["outcome"] = "failure"
-
-                    if "LogonType" in hit["_source"]["winlog"]["event_data"]:
-                        logon_type = hit["_source"]["winlog"]["event_data"]["LogonType"]
-                        item["logon_type"] = logon_type
-                        item["verbose_logon_type"] = WINDOWS_SUCCESSFUL_LOGON_TYPES.get(
-                            logon_type, "unknown"
-                        )
-                    if "SubStatus" in hit["_source"]["winlog"]["event_data"]:
-                        substatus = hit["_source"]["winlog"]["event_data"]["SubStatus"]
-                        item["substatus"] = substatus
-                        item[
-                            "verbose_substatus"
-                        ] = WINDOWS_UNSUCCESSFUL_LOGON_CODES.get(substatus, "unknown")
-
-                    results["logon_info"].append(item)
-
-                results["successful_logon_ips"] = list(results["successful_logon_ips"])
-                results["unsuccessful_logon_ips"] = list(
-                    results["unsuccessful_logon_ips"]
-                )
-                results["total_ips"] = len(results["successful_logon_ips"]) + len(
-                    results["unsuccessful_logon_ips"]
-                )
 
         self.report(results)
 
-    def _http_status_error(self, status_code):
-        self.error(f"Unable to complete request. Status code: {status_code}")
+    def _get_response(self, data):
+        response = requests.get(
+            self.url + "/" + self.index + "/_search",
+            headers=self.headers,
+            auth=(self.username, self.password),
+            json=data,
+            proxies=self.proxies,
+            verify=self.verify,
+        )
+        if response.status_code != requests.codes.ok:
+            self.error(f"Unable to complete request. Status code: {status_code}")
+
+        return response.json()
 
     def _build_ignore_ips(self):
         if len(self.ignore_ips) == 0:
