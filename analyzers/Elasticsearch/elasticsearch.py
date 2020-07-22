@@ -82,7 +82,7 @@ class Elasticsearch(Analyzer):
 
     def summary(self, raw):
         count = raw.get("total_ips", 0)
-        if count >= SAFE_IP_COUNT:
+        if count <= SAFE_IP_COUNT:
             level = "safe"
         else:
             level = "suspicious"
