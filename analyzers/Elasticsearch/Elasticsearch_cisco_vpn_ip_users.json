@@ -55,13 +55,6 @@
             "type": "string",
             "multi": false,
             "required": false
-        },
-        {
-            "name": "es_ignore_ips",
-            "description": "IPs to add to must_not for source.ip.  Can be CIDR, comma separated for multiple.",
-            "type": "string",
-            "multi": false,
-            "required": false
         }
     ]
 }
