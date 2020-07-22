@@ -88,6 +88,20 @@ class Elasticsearch(Analyzer):
 
         self.proxies = self.get_param("config.proxy", None)
 
+    def artifacts(self, raw):
+        if self.service in ("cisco-vpn-ip-login-users", "windows-user-ip-logins"):
+            users = raw.get("successful_logon_users", []) + raw.get(
+                "unsuccessful_logon_users", []
+            )
+
+            return [{"dataType": "user", "data": user} for user in users]
+        else:
+            ips = raw.get("successful_logon_ips", []) + raw.get(
+                "unsuccessful_logon_ips", []
+            )
+
+            return [{"dataType": "ip", "data": ip} for ip in ips]
+
     def summary(self, raw):
         if self.service in ("cisco-vpn-ip-login-users", "windows-user-ip-logins"):
             count = raw.get("total_users", 0)
