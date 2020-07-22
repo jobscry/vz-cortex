@@ -9,6 +9,7 @@ SERVICES = (
     "windows-user-login-ips",
     "cisco-vpn-user-login-ips",
     "cisco-vpn-ip-login-users",
+    "windows-user-ip-logins",
 )
 USER_AGENT = "vz-cortex/elasticsearch-1.0"
 WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE = 4624
@@ -88,14 +89,16 @@ class Elasticsearch(Analyzer):
         self.proxies = self.get_param("config.proxy", None)
 
     def summary(self, raw):
-        if self.service == "cisco-vpn-ip-login-users":
+        if self.service in ("cisco-vpn-ip-login-users", "windows-user-ip-logins"):
             count = raw.get("total_users", 0)
             if count <= SAFE_USER_COUNT:
                 level = "safe"
             else:
                 level = "suspicious"
 
-            predicate = "cisco-vpn-ip-login-users"
+            predicate = "cisco-vpn-users"
+            if self.service == "windows-user-ip-logins":
+                predicate = "windows-users"
 
         else:
             count = raw.get("total_ips", 0)
@@ -104,7 +107,7 @@ class Elasticsearch(Analyzer):
             else:
                 level = "suspicious"
 
-            predicate = "windows-login-ips"
+            predicate = "windows-ips"
             if self.service == "cisco-vpn-user-login-ips":
                 predicate = "cisco-vpn-ips"
 
@@ -114,7 +117,96 @@ class Elasticsearch(Analyzer):
         results = dict()
         must_not = self._build_ignore_ips()
 
-        if self.service == "cisco-vpn-ip-login-users":
+        if self.service == "windows-user-ip-logins":
+            data = {
+                "_source": [
+                    "source.ip",
+                    "agent.hostname",
+                    "winlog.event_data.LogonType",
+                    "@timestamp",
+                    "event.code",
+                    "winlog.event_data.SubStatus",
+                    "user.name",
+                ],
+                "sort": [{"@timestamp": {"order": "desc"}}],
+                "size": MAX_RESULT_SIZE,
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"exists": {"field": "source.ip"}},
+                            {"exists": {"field": "user.name"}},
+                            {"exists": {"field": "agent.hostname"}},
+                            {"match": {"source.ip": self.data}},
+                        ],
+                        "should": [
+                            {
+                                "match": {
+                                    "event.code": WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE
+                                }
+                            },
+                            {
+                                "match": {
+                                    "event.code": WINDOWS_UNSUCCESSFUL_LOGON_EVENT_CODE
+                                }
+                            },
+                        ],
+                        "minimum_should_match": 1,
+                        "filter": {
+                            "range": {"@timestamp": {"gte": f"now-{self.hours}h"}}
+                        },
+                    }
+                },
+            }
+
+            json_data = self._get_response(data)
+
+            results["successful_logon_users"] = set()
+            results["unsuccessful_logon_users"] = set()
+            results["logon_info"] = list()
+
+            for hit in json_data["hits"]["hits"]:
+                user = hit["_source"]["user"]["name"]
+                event_code = hit["_source"]["event"]["code"]
+
+                item = {
+                    "host": hit["_source"]["agent"]["hostname"],
+                    "timestamp": hit["_source"]["@timestamp"],
+                    "user": user,
+                    "event_code": event_code,
+                }
+
+                if event_code == WINDOWS_SUCCESSFUL_LOGON_EVENT_CODE:
+                    results["successful_logon_users"].add(user)
+                    item["outcome"] = "success"
+
+                else:
+                    results["unsuccessful_logon_users"].add(user)
+                    item["outcome"] = "failure"
+
+                if "LogonType" in hit["_source"]["winlog"]["event_data"]:
+                    logon_type = hit["_source"]["winlog"]["event_data"]["LogonType"]
+                    item["logon_type"] = logon_type
+                    item["verbose_logon_type"] = WINDOWS_SUCCESSFUL_LOGON_TYPES.get(
+                        logon_type, "unknown"
+                    )
+                if "SubStatus" in hit["_source"]["winlog"]["event_data"]:
+                    substatus = hit["_source"]["winlog"]["event_data"]["SubStatus"]
+                    item["substatus"] = substatus
+                    item["verbose_substatus"] = WINDOWS_UNSUCCESSFUL_LOGON_CODES.get(
+                        substatus, "unknown"
+                    )
+
+                results["logon_info"].append(item)
+
+            results["successful_logon_users"] = list(results["successful_logon_users"])
+            results["unsuccessful_logon_users"] = list(
+                results["unsuccessful_logon_users"]
+            )
+            results["total_users"] = len(results["successful_logon_users"]) + len(
+                results["unsuccessful_logon_users"]
+            )
+
+        elif self.service == "cisco-vpn-ip-login-users":
             data = {
                 "_source": ["user.name", "source.ip", "@timestamp"],
                 "sort": [{"@timestamp": {"order": "desc"}}],
