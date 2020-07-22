@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import re
+
 import requests
 from cortexutils.analyzer import Analyzer
 
@@ -36,6 +38,7 @@ CISCO_VPN_MESSAGE_ID = "722051"
 MAX_RESULT_SIZE = 100
 DEFAULT_HOURS = 12
 SAFE_IP_COUNT = 2
+IGNORE_IPS_SAFE_CHARS = re.compile(r"^[0-9/\.\:,\s]+$")
 
 
 class Elasticsearch(Analyzer):
@@ -54,6 +57,7 @@ class Elasticsearch(Analyzer):
         self.hours = self.get_param("config.es_hours", DEFAULT_HOURS)
         self.user_agent = self.get_param("config.user_agent", USER_AGENT)
         self.service = self.get_param("config.service", None, "Service is missing")
+
         self.data = self.get_data()
 
         self.headers = {
@@ -64,6 +68,10 @@ class Elasticsearch(Analyzer):
 
         if self.hours < 0:
             self.error("Hours must be greater than 0.")
+
+        self.ignore_ips = [
+            x.strip() for x in self.get_param("config.es_ignore_ips", "").split(",")
+        ]
 
         if self.service not in SERVICES:
             self.error("bad service")
@@ -83,12 +91,12 @@ class Elasticsearch(Analyzer):
         if self.service == "cisco-vpn-user-login-ips":
             predicate = "cisco-vpn-ips"
 
-        return {
-            "taxonomies": [self.build_taxonomy(level, "HTTP_INFO", "Redirects", count)]
-        }
+        return {"taxonomies": [self.build_taxonomy(level, "ES", predicate, count)]}
 
     def run(self):
         results = dict()
+        must_not = self._build_ignore_ips()
+
         if self.service == "cisco-vpn-user-login-ips":
             data = {
                 "_source": ["user.name", "source.ip", "@timestamp"],
@@ -108,6 +116,10 @@ class Elasticsearch(Analyzer):
                     }
                 },
             }
+
+            if must_not is not None:
+                data["query"]["bool"]["must_not"] = must_not
+
             response = requests.get(
                 self.url + "/" + self.index + "/_search",
                 headers=self.headers,
@@ -181,6 +193,9 @@ class Elasticsearch(Analyzer):
                 },
             }
 
+            if must_not is not None:
+                data["query"]["bool"]["must_not"] = must_not
+
             response = requests.get(
                 self.url + "/" + self.index + "/_search",
                 headers=self.headers,
@@ -245,6 +260,18 @@ class Elasticsearch(Analyzer):
 
     def _http_status_error(self, status_code):
         self.error(f"Unable to complete request. Status code: {status_code}")
+
+    def _build_ignore_ips(self):
+        if len(self.ignore_ips) == 0:
+            return None
+
+        must_not = list()
+        for ip in self.ignore_ips:
+            if IGNORE_IPS_SAFE_CHARS.match(ip) is None:
+                self.error(f"Ignore IP does not match safe characters: {ip}")
+            else:
+                must_not.append({"match": {"source.ip": ip}})
+        return must_not
 
 
 if __name__ == "__main__":
