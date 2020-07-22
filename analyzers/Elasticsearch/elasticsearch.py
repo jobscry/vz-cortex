@@ -144,7 +144,7 @@ class Elasticsearch(Analyzer):
                 user = hit["_source"]["user"]["name"]
 
                 item = {"timestamp": hit["_source"]["@timestamp"], "user": user}
-                results["successful_logon_users"].add(ip)
+                results["successful_logon_users"].add(user)
 
                 results["logon_info"].append(item)
 
