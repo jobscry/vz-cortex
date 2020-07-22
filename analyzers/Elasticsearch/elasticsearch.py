@@ -69,9 +69,11 @@ class Elasticsearch(Analyzer):
         if self.hours < 0:
             self.error("Hours must be greater than 0.")
 
-        self.ignore_ips = [
-            x.strip() for x in self.get_param("config.es_ignore_ips", "").split(",")
-        ]
+        ignore_ips = self.get_param("config.es_ignore_ips", None)
+        if ignore_ips is None:
+            self.ignore_ips = []
+        else:
+            self.ignore_ips = [x.strip() for x in ignore_ips.split(",")]
 
         if self.service not in SERVICES:
             self.error("bad service")
