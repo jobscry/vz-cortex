@@ -3,7 +3,7 @@
 import re
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Iterator, Pattern, Tuple, Union
+from typing import Any, Dict, Iterator, Match, Pattern, Tuple, Union
 from urllib.parse import urlsplit
 
 import requests
@@ -15,7 +15,7 @@ DEFAULT_CHECK_QUERY_SECONDS: int = 5
 DEFAULT_EVENT_COUNT: int = 200
 DEFAULT_HOURS_AGO: int = 2
 NEXT_CURSOR_NONE: str = '"nextCursor":null,'
-NEXT_CURSOR_RE: Pattern = re.compile(r'"nextCusrsor":"([^"]+)"')
+NEXT_CURSOR_RE: Pattern = re.compile(r'"nextCursor":"([^"]+)"')
 S1_API_ENDPOINTS: Dict[str, str] = {
     "create-query-and-get-id": "/web/api/v2.1/dv/init-query",
     "check-query-status": "/web/api/v2.1/dv/query-status",
@@ -85,10 +85,8 @@ class SentinelOne(Analyzer):
                 return True, False
             else:
                 self.error(data["data"]["responseState"])
-                return False, True
         else:
             self.error(self.errors_to_string(response))
-            return False, True
 
     def _create_query_and_get_id(self, query: str) -> Union[str, None]:
         """Create Query and Get ID
@@ -113,11 +111,10 @@ class SentinelOne(Analyzer):
             return data["data"]["queryId"]
         else:
             self.error(self.errors_to_string(response))
-        return None
 
     def agent_name_generator(
         self, query_id: str, next_cursor: str = None
-    ) -> Iterator[str]:
+    ) -> Iterator[Match[Any]]:
         """Agent Name Generator
         Response may be massive, this will make multiple calls of 200 records at a time.
         Each time looking for "AgentName" values as well as the "NextCursor".  This
@@ -139,7 +136,6 @@ class SentinelOne(Analyzer):
             )
 
             if response.status_code != requests.codes.ok:
-                errored = True
                 self.error(self.errors_to_string(response))
             else:
                 data = response.text
@@ -156,9 +152,8 @@ class SentinelOne(Analyzer):
                         errored = True
 
                 # find all agent names
-                matches = AGENT_NAME_RE.findall(data)
-                if matches is not None:
-                    return iter(matches)
+                for m in AGENT_NAME_RE.finditer(data):
+                    yield m[1]
 
     def artifacts(self, raw):
         if self.service == "dns-lookups":
@@ -166,7 +161,6 @@ class SentinelOne(Analyzer):
                 {"dataType": "host", "data": agent_name}
                 for agent_name in raw.get("agent_names", [])
             ]
-        return []
 
     def errors_to_string(self, response: requests.Response) -> str:
         """Errors to String
